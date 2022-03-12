@@ -32,7 +32,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.CalendarContract;
 import android.text.format.DateUtils;
-import android.text.format.Time;
 import android.util.Log;
 import android.widget.RemoteViews;
 
@@ -40,6 +39,10 @@ import com.android.calendar.AllInOneActivity;
 import com.android.calendar.DynamicTheme;
 import com.android.calendar.EventInfoActivity;
 import com.android.calendar.Utils;
+import com.android.calendar.event.EditEventActivity;
+import com.android.calendarcommon2.Time;
+
+import java.util.Calendar;
 
 import ws.xsoh.etar.R;
 
@@ -55,7 +58,6 @@ public class CalendarAppWidgetProvider extends AppWidgetProvider {
 
     // TODO Move these to Calendar.java
     static final String EXTRA_EVENT_IDS = "com.android.calendar.EXTRA_EVENT_IDS";
-
     private static final int PI_FLAG_IMMUTABLE = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
 
     /**
@@ -79,7 +81,7 @@ public class CalendarAppWidgetProvider extends AppWidgetProvider {
         intent.setClass(context, CalendarAppWidgetService.CalendarFactory.class);
         intent.setDataAndType(CalendarContract.CONTENT_URI, Utils.APPWIDGET_DATA_TYPE);
         return PendingIntent.getBroadcast(context, 0 /* no requestCode */, intent,
-                PI_FLAG_IMMUTABLE);
+                Utils.PI_FLAG_IMMUTABLE);
     }
 
     /**
@@ -93,7 +95,7 @@ public class CalendarAppWidgetProvider extends AppWidgetProvider {
                 Intent.FLAG_ACTIVITY_TASK_ON_HOME);
         launchIntent.setClass(context, AllInOneActivity.class);
         return PendingIntent.getActivity(context, 0 /* no requestCode */, launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PI_FLAG_IMMUTABLE);
+                PendingIntent.FLAG_UPDATE_CURRENT | Utils.PI_FLAG_IMMUTABLE);
     }
 
     /**
@@ -205,9 +207,9 @@ public class CalendarAppWidgetProvider extends AppWidgetProvider {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.appwidget);
             // Calendar header
             Time time = new Time(Utils.getTimeZone(context, null));
-            time.setToNow();
-            long millis = time.toMillis(true);
-            final String dayOfWeek = DateUtils.getDayOfWeekString(time.weekDay + 1,
+            time.set(System.currentTimeMillis());
+            long millis = time.toMillis();
+            final String dayOfWeek = DateUtils.getDayOfWeekString(time.getWeekDay() + 1,
                     DateUtils.LENGTH_MEDIUM);
             final String date = Utils.formatDateRange(context, millis, millis,
                     DateUtils.FORMAT_ABBREV_ALL | DateUtils.FORMAT_SHOW_DATE
@@ -234,8 +236,18 @@ public class CalendarAppWidgetProvider extends AppWidgetProvider {
             launchCalendarIntent
                     .setData(Uri.parse("content://com.android.calendar/time/" + millis));
             final PendingIntent launchCalendarPendingIntent = PendingIntent.getActivity(
-                    context, 0 /* no requestCode */, launchCalendarIntent, PI_FLAG_IMMUTABLE);
+                    context, 0 /* no requestCode */, launchCalendarIntent, Utils.PI_FLAG_IMMUTABLE);
             views.setOnClickPendingIntent(R.id.header, launchCalendarPendingIntent);
+
+            // Open Add event option when user clicks on the add button on widget
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setClass(context, EditEventActivity.class);
+            intent.putExtra(EXTRA_EVENT_ALL_DAY, false);
+            intent.putExtra(CalendarContract.Events.CALENDAR_ID, -1);
+
+            final PendingIntent addEventPendingIntent = PendingIntent.getActivity(
+                    context, 0 /* no requestCode */, intent, PI_FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.iv_add, addEventPendingIntent);
 
             // Each list item will call setOnClickExtra() to let the list know
             // which item

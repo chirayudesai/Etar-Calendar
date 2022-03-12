@@ -35,7 +35,6 @@ import android.provider.CalendarContract.Calendars;
 import android.provider.CalendarContract.Events;
 import android.provider.CalendarContract.Instances;
 import android.text.format.DateUtils;
-import android.text.format.Time;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -46,13 +45,13 @@ import com.android.calendar.Utils;
 import com.android.calendar.widget.CalendarAppWidgetModel.DayInfo;
 import com.android.calendar.widget.CalendarAppWidgetModel.EventInfo;
 import com.android.calendar.widget.CalendarAppWidgetModel.RowInfo;
+import com.android.calendarcommon2.Time;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ws.xsoh.etar.R;
-
 
 public class CalendarAppWidgetService extends RemoteViewsService {
     static final int EVENT_MIN_COUNT = 20;
@@ -111,12 +110,10 @@ public class CalendarAppWidgetService extends RemoteViewsService {
         long delta = unixTime - now;
         if (delta > DateUtils.MINUTE_IN_MILLIS) {
             delta /= DateUtils.MINUTE_IN_MILLIS;
-            return String.format("[%d] %s (%+d mins)", unixTime,
-                    time.format("%H:%M:%S"), delta);
+            return String.format("[%d] %s (%+d mins)", unixTime, time.format(), delta);
         } else {
             delta /= DateUtils.SECOND_IN_MILLIS;
-            return String.format("[%d] %s (%+d secs)", unixTime,
-                    time.format("%H:%M:%S"), delta);
+            return String.format("[%d] %s (%+d secs)", unixTime, time.format(), delta);
         }
     }
 
@@ -182,20 +179,20 @@ public class CalendarAppWidgetService extends RemoteViewsService {
 
         private static long getNextMidnightTimeMillis(String timezone) {
             Time time = new Time();
-            time.setToNow();
-            time.monthDay++;
-            time.hour = 0;
-            time.minute = 0;
-            time.second = 0;
-            long midnightDeviceTz = time.normalize(true);
+            time.set(System.currentTimeMillis());
+            time.setDay(time.getDay() + 1);
+            time.setHour(0);
+            time.setMinute(0);
+            time.setSecond(0);
+            long midnightDeviceTz = time.normalize();
 
-            time.timezone = timezone;
-            time.setToNow();
-            time.monthDay++;
-            time.hour = 0;
-            time.minute = 0;
-            time.second = 0;
-            long midnightHomeTz = time.normalize(true);
+            time.setTimezone(timezone);
+            time.set(System.currentTimeMillis());
+            time.setDay(time.getDay() + 1);
+            time.setHour(0);
+            time.setMinute(0);
+            time.setSecond(0);
+            long midnightHomeTz = time.normalize();
 
             return Math.min(midnightDeviceTz, midnightHomeTz);
         }
@@ -291,7 +288,9 @@ public class CalendarAppWidgetService extends RemoteViewsService {
                 } else {
                     views = new RemoteViews(mContext.getPackageName(), R.layout.widget_item);
                 }
-                int displayColor = Utils.getDisplayColorFromColor(eventInfo.color);
+                int displayColor = Utils.getDisplayColorFromColor(mContext, eventInfo.color);
+                int adaptiveTextColor = Utils.getAdaptiveTextColor(mContext, mStandardColor, displayColor);
+                int adaptiveAllDayTextColor = Utils.getAdaptiveTextColor(mContext, mAllDayColor, displayColor);
 
                 final long now = System.currentTimeMillis();
                 if (!eventInfo.allDay && eventInfo.start <= now && now <= eventInfo.end) {
@@ -319,7 +318,7 @@ public class CalendarAppWidgetService extends RemoteViewsService {
                     } else {
                         views.setInt(R.id.agenda_item_color, "setImageResource",
                                 R.drawable.widget_chip_responded_bg);
-                        views.setInt(R.id.title, "setTextColor", mAllDayColor);
+                        views.setInt(R.id.title, "setTextColor", adaptiveAllDayTextColor);
                     }
                     if (selfAttendeeStatus == Attendees.ATTENDEE_STATUS_DECLINED) {
                         // 40% opacity
@@ -348,9 +347,9 @@ public class CalendarAppWidgetService extends RemoteViewsService {
                     } else {
                         views.setInt(R.id.agenda_item_color, "setImageResource",
                                 R.drawable.widget_chip_responded_bg);
-                        views.setInt(R.id.title, "setTextColor", mStandardColor);
-                        views.setInt(R.id.when, "setTextColor", mStandardColor);
-                        views.setInt(R.id.where, "setTextColor", mStandardColor);
+                        views.setInt(R.id.title, "setTextColor", adaptiveTextColor);
+                        views.setInt(R.id.when, "setTextColor", adaptiveTextColor);
+                        views.setInt(R.id.where, "setTextColor", adaptiveTextColor);
                     }
                     views.setInt(R.id.agenda_item_color, "setColorFilter", displayColor);
                 }
@@ -544,17 +543,17 @@ public class CalendarAppWidgetService extends RemoteViewsService {
                 alertManager.cancel(pendingUpdate);
                 alertManager.set(AlarmManager.RTC, triggerTime, pendingUpdate);
                 Time time = new Time(Utils.getTimeZone(mContext, null));
-                time.setToNow();
+                time.set(System.currentTimeMillis());
 
-                if (time.normalize(true) != sLastUpdateTime) {
+                if (time.normalize() != sLastUpdateTime) {
                     Time time2 = new Time(Utils.getTimeZone(mContext, null));
                     time2.set(sLastUpdateTime);
-                    time2.normalize(true);
-                    if (time.year != time2.year || time.yearDay != time2.yearDay) {
+                    time2.normalize();
+                    if (time.getYear() != time2.getYear() || time.getYearDay() != time2.getYearDay()) {
                         Utils.sendUpdateWidgetIntent(mContext);
                     }
 
-                    sLastUpdateTime = time.toMillis(true);
+                    sLastUpdateTime = time.toMillis();
                 }
 
                 if (CalendarAppWidgetProvider.isWidgetSupported(mContext)) {

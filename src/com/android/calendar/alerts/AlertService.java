@@ -44,7 +44,6 @@ import android.provider.CalendarContract.Attendees;
 import android.provider.CalendarContract.CalendarAlerts;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
-import android.text.format.Time;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -52,6 +51,7 @@ import androidx.core.content.ContextCompat;
 
 import com.android.calendar.Utils;
 import com.android.calendar.settings.GeneralPreferences;
+import com.android.calendarcommon2.Time;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -324,7 +324,7 @@ public class AlertService extends Service {
                 Time time = new Time();
                 time.set(nextRefreshTime);
                 String msg = String.format("Scheduling next notification refresh in %d min at: "
-                        + "%d:%02d", minutesBeforeRefresh, time.hour, time.minute);
+                        + "%d:%02d", minutesBeforeRefresh, time.getHour(), time.getMinute());
                 Log.d(TAG, msg);
             }
         } else if (nextRefreshTime < currentTime) {
@@ -415,9 +415,9 @@ public class AlertService extends Service {
         if (info.allDay) {
             Time t = new Time();
             startAdjustedForAllDay = Utils.convertAlldayUtcToLocal(t, info.startMillis,
-                    Time.getCurrentTimezone());
+                    Utils.getCurrentTimezone());
             endAdjustedForAllDay = Utils.convertAlldayUtcToLocal(t, info.startMillis,
-                    Time.getCurrentTimezone());
+                    Utils.getCurrentTimezone());
         }
 
         // We change an event's priority bucket at 15 minutes into the event or 1/4 event duration.
